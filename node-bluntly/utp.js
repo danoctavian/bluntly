@@ -1,3 +1,9 @@
+
+/*
+
+THIS IS NOT MY CODE. it's ripped off from https://github.com/mafintosh/utp
+I needed to modify it a bit. I may be able to just monkey patch it and actually remove this
+*/
 var dgram = require('dgram');
 var cyclist = require('cyclist');
 var util = require('util');
