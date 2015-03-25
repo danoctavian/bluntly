@@ -1,0 +1,39 @@
+{
+  "name": "blunt-speak",
+  "version": "1.0.0",
+  "description": "just talk the talk",
+  "main": "index.js",
+  "scripts": {
+    "test": "runtest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danoctavian/blunt-speak"
+  },
+  "keywords": [
+    "serverless",
+    "p2p",
+    "crypto"
+  ],
+  "dependencies": {
+    "ramda": "0.10",
+    "bittorrent-dht" : "3.0.0",
+    "tweetnacl": "*",
+    "node-rsa":"*",
+    "minimist": "*",
+    "stream-array": "*",
+    "map-stream": "*",
+    "readable-stream": "*",
+    "merge": "*",
+    "multipipe": "*",
+    "utp": "*",
+    "cyclist": "*"
+  },
+
+  "author": "Dan Octavian",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/danoctavian/blunt-speak/issues"
+  },
+  "homepage": "https://github.com/danoctavian/blunt-speak"
+}
