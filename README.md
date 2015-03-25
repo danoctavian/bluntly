@@ -1,4 +1,4 @@
-# blunt-speak
+# bluntly
 
 talk to whoever safely with no bullshit
 
@@ -60,7 +60,7 @@ For the client:
 node ../index.js -c myself
 ``` 
 
-Obviously the above is not secure, because the private key is not in the open.
+Obviously the above is not secure, because the private key is in the open.
 
 ### RUNTIME REQUIREMENTS
 
