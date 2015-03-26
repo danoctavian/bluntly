@@ -231,13 +231,14 @@ function udpConnect(host, port, key, dht, recvPort, handleConn) {
   var infoHash = rendezvousInfoHash(key)      
   console.log("announcing itself on the rendezvous infohash " + infoHash)
 
-  var ownPort = recvPort
+  var ownPort = recvPort.val
+  recvPort.val++ // use a bigger port for the next one
 
   dht.announce(infoHash, ownPort, function(outcome) {
     var socket = dgram.createSocket('udp4')
     socket.bind(ownPort)
 
-    console.log(" hole punching to " + host + ":" + port)
+    console.log("hole punching to " + host + ":" + port)
 
     punch.udpHolePunch(socket, {host: host, port: port}, function(err) {
       if (err) {
@@ -290,7 +291,8 @@ function connect(key, dht, holePunch, handleConn) {
       console.log("direct TCP connection attempt failed with error " + err)
       if (holePunch) {
         console.log("Trying a hole punching connection over UDP on the same port.")
-        udpConnect(host, port, key, dht, holePunch.recvPort, handleConn)
+        var recvPort = {val: holePunch.recvPort}
+        udpConnect(host, port, key, dht, recvPort, handleConn)
       } else {
         handleConn(new Error("Failed to connect directly. making no other attempts."))
       }
