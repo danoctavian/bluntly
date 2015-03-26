@@ -2,5 +2,6 @@
   "dhtPort": 20000,
   "ownKey": {"pub": "mypub.rsa", "priv": "mypriv.rsa"},
   "ID": "myself",
-  "contactsDir": "contacts"
+  "contactsDir": "contacts",
+  "holePunch": {"recvPort": 23456}
 }
