@@ -270,6 +270,9 @@ function connect(key, dht, holePunch, handleConn) {
   var infoHash = keyFingerprint(key.exportKey('pkcs8-public-der'))
   console.log("atempting connect to infohash " + infoHash)
 
+   // the recv port for udp hole punching
+  // we instantiate a mutable location for it so it can be incremented
+  var recvPort = {val: holePunch.recvPort}
   var candidates = {}
   dht.onInfoHashPeer(infoHash, function(addr, from) {
     if (candidates[addr]) return
@@ -291,7 +294,6 @@ function connect(key, dht, holePunch, handleConn) {
       console.log("direct TCP connection attempt failed with error " + err)
       if (holePunch) {
         console.log("Trying a hole punching connection over UDP on the same port.")
-        var recvPort = {val: holePunch.recvPort}
         udpConnect(host, port, key, dht, recvPort, handleConn)
       } else {
         handleConn(new Error("Failed to connect directly. making no other attempts."))
