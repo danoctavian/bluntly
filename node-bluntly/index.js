@@ -74,7 +74,7 @@ if (argv.c) {
     console.log("succeeded connecting to server!! start chatting.")
     conn.src.pipe(process.stdout) 
     conn.sink.write("i am the client. obey.")
-    process.stdin.pipe(conn.sink)
+    process.stdin.pipe(mapSSync(function(b) {return b.toString('utf8')})).pipe(conn.sink)
   }
 } else if (argv.s) {
   console.log("running a server")
@@ -84,8 +84,8 @@ if (argv.c) {
     alreadyChatting = true
     console.log("got connection from client!! start chatting.")
     conn.src.pipe(process.stdout) 
-  //  process.stdin.pipe(conn.sink)
     conn.sink.write("i am the server. obey.")
+    process.stdin.pipe(mapSSync(function(b) {return b.toString('utf8')})).pipe(conn.sink)
   }
 }
 
