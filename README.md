@@ -1,8 +1,10 @@
 # bluntly
 
-talk to whoever safely with no bullshit
+talk to whoever, wherever safely with no bullshit
 
-No servers, no motherfucking NAT getting in the way. It's a POC (proof-of-concept) so don't start talking with snowden with this shit.
+Bluntly allows you to setup a secure connection to a peer only by knowing its public key (and it knowing yours).
+
+No servers needed, no NAT getting in the way. It's a POC (proof-of-concept) so don't start talking with snowden with this shit.
 
 ![alt text](https://github.com/danoctavian/bluntly/blob/master/docs/chat-diagram.png "fuuak")
 
@@ -11,7 +13,7 @@ myself for this, it just felt good to screw around in javascript).
 
 How?
 
-* exchange pub keys with your partner (i don't fucking know how, figure it out)
+* exchange pub keys with your partner (i don't know how, figure it out)
 
 * client looks up listener in bittorrent DHT by his pubkey (Lpk) using info\_hash = sha1(Lpk)
 
