@@ -50,7 +50,6 @@ function SocketStream (socket) {
 }
 util.inherits(SocketStream, stream.Writable)
 SocketStream.prototype._write = function (chunk, encoding, done) {
-  console.log("sending down the socket " + chunk)
   this.ownSocket.write(chunk)
   done()
 }
