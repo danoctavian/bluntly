@@ -53,7 +53,6 @@ function sendPunch(client, send) {
 }
 
 function send(socket, conn, msg, cb) {
-  //console.log("sending msg " + msg + " to " + JSON.stringify(conn))
   socket.send(msg, 0, msg.length, conn.port, conn.host, function(err, bytes) {
     if (err) {
       udp_in.close()

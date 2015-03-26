@@ -16,9 +16,11 @@ var StringDecoder = require('string_decoder').StringDecoder
 var stream = require('stream')
 var util = require('util')
 var dgram = require("dgram")
+var log = require("winston")
 
 var utp = require("./utp")
 var punch = require("./hole-punch")
+
 
 // "CONSTANTS"
 
@@ -64,7 +66,7 @@ var config = loadConfig(argv)
 // it's not a proper chat program. you can get just 1 connection at 1 time as a server
 // everyone else is just ignored. it's a POC, ok
 if (argv.c) {
-  console.log("running a client")
+  log.info("running a client")
   var protocol = function (err, conn) {
     if (err) {
       console.log("connection failed with " + err)
@@ -76,7 +78,7 @@ if (argv.c) {
     process.stdin.pipe(mapSSync(function(b) {return b.toString('utf8')})).pipe(conn.sink)
   }
 } else if (argv.s) {
-  console.log("running a server")
+  log.info("running a server")
   var alreadyChatting = false
   var protocol = function (conn) {
     if (alreadyChatting) return // if someone else tries to connect just ignore them (RUDE)
@@ -92,7 +94,7 @@ run(config, protocol)
 
 function run(config, handleConn) {
   if (fs.existsSync(config.dhtCacheFile)) { // read cached routing table
-    console.log("loading routing table from cache...")
+    log.debug("loading routing table from cache...")
     var cacheFile = fs.readFileSync(config.dhtCacheFile)
     bootstrap = JSON.parse(cacheFile)
     var dht = new DHT({bootstrap: bootstrap})
@@ -103,15 +105,15 @@ function run(config, handleConn) {
   augmentDHT(dht)
 
   dht.listen(config.dhtPort, function() {
-    console.log("DHT is listening...")
+    log.info("DHT is listening...")
   })
 
   dht.on("ready", function() {
-    console.log("DHT is ready...")
+    log.info("DHT is ready...")
     process.on('SIGINT', function() { // this is a hack - do it on exit
       // when exiting for whatever reason at this point
       // just dump the routing table for future use
-      console.log("dumping dht routing table to file...")
+      info.log("dumping dht routing table to file...")
       fs.writeFileSync(config.dhtCacheFile, JSON.stringify(dht.toArray()))
       process.exit()
     })
@@ -119,12 +121,12 @@ function run(config, handleConn) {
     // LISTEN
     if (config.listen) {
       var onConn = function(socket) { // handling a socket connection
-        console.log("got a connection from a client... ")
+        debug.log("got a connection from a client... ")
         var onChatConn = function(err, conn) { 
           // handling a post-handshake connection
           // which may fail
           if (err) {
-            console.log("connection failed hanshake with " + err)
+            log.warn("connection failed hanshake with " + err)
             return
           }
           handleConn(conn)
@@ -133,11 +135,11 @@ function run(config, handleConn) {
       }
       var key = config.ownKey.pub.exportKey('pkcs8-public-der')
       var infoHash = keyFingerprint(key)
-      console.log("advertising yourself with infohash " + infoHash)
+      log.info("advertising yourself with infohash " + infoHash)
 
       // announcing regularly 
       setInterval(function() {
-//        console.log("announcing to " + infoHash + " with port " + config.listen.port)
+        log.debug("announcing to " + infoHash + " with port " + config.listen.port)
         dht.announce(infoHash, config.listen.port, function(outcome) {
         })
       }, 10000)
@@ -151,13 +153,13 @@ function run(config, handleConn) {
 
     // CONNECT
     if (config.connect) {
-      console.log("connecting...")
+      log.info("connecting...")
       var onConn = function(err, socket) {
         if (err) {
-          console.log("failed to initiate a network connection. exiting.")
+          log.error("failed to initiate a network connection. exiting.")
           return
         }
-        console.log("attempting a blunt handshake negotiation..." )
+        log.info("attempting a bluntly handshake negotiation..." )
         openConn(socket, config.ownKey, config.ID, config.connect.key, handleConn)
       }
       connect(config.connect.key, dht, config.holePunch, onConn) 
@@ -185,7 +187,7 @@ function udpListen(dht, config, handleConn) {
   var server = utp.createServer(handleConn)
   var socket = dgram.createSocket('udp4')
   socket.bind(config.port)
-  server.listenSocket(socket, function () {console.log("utp server is listening...")})
+  server.listenSocket(socket, function () {log.debug("utp server is listening...")})
 
   var infoHash = rendezvousInfoHash(config.ownKey.pub)
 
@@ -193,13 +195,13 @@ function udpListen(dht, config, handleConn) {
 
   dht.onInfoHashPeer(infoHash, function(addr, from) {
     if (punchAttempts[addr]) return // we're already working on it
-    console.log("attempting a hole punch to potential peer " + addr)
+    debug.log("attempting a hole punch to potential peer " + addr)
     punchAttempts[addr] = true
     addr = addr.split(":")
 
     punch.udpHolePunch(socket, {host: addr[0], port: addr[1]}, function(err) {
       if(err) {
-        console.log("Hole punch failed with error " + err)
+        log.debug("Hole punch failed with error " + err)
         // leave the node in punchAttempts so you don't retry, at least for this session
       }
       // if the hole punch was succesful, there nothing you need to do
@@ -214,7 +216,7 @@ function udpListen(dht, config, handleConn) {
     }, 15000)
   })
 
-  console.log("looking up peers at the rendezvous infohash " + infoHash)
+  log.debug("looking up peers at the rendezvous infohash " + infoHash)
 
   var lookupForever = function () {
     // not using the result of this lookup; using the peers that come with on('peer')
@@ -228,7 +230,7 @@ function udpListen(dht, config, handleConn) {
 
 function udpConnect(host, port, key, dht, recvPort, handleConn) {
   var infoHash = rendezvousInfoHash(key)      
-  console.log("announcing itself on the rendezvous infohash " + infoHash + " with port " + recvPort.val)
+  log.debug("announcing itself on the rendezvous infohash " + infoHash + " with port " + recvPort.val)
 
   var ownPort = recvPort.val
   recvPort.val++ // use a bigger port for the next one
@@ -237,7 +239,7 @@ function udpConnect(host, port, key, dht, recvPort, handleConn) {
     var socket = dgram.createSocket('udp4')
     socket.bind(ownPort)
 
-    console.log("hole punching to " + host + ":" + port)
+    log.debug("hole punching to " + host + ":" + port)
 
     punch.udpHolePunch(socket, {host: host, port: port}, function(err) {
       if (err) {
@@ -267,7 +269,7 @@ and attemtps to make connection to it
 */
 function connect(key, dht, holePunch, handleConn) {
   var infoHash = keyFingerprint(key.exportKey('pkcs8-public-der'))
-  console.log("atempting connect to infohash " + infoHash)
+  log.debug("atempting connect to infohash " + infoHash)
 
    // the recv port for udp hole punching
   // we instantiate a mutable location for it so it can be incremented
@@ -276,12 +278,11 @@ function connect(key, dht, holePunch, handleConn) {
   dht.onInfoHashPeer(infoHash, function(addr, from) {
     if (candidates[addr]) return
     candidates[addr] = true
-    console.log("attempting a connection to potential peer " + addr)
+    log.debug("attempting a connection to potential peer " + addr)
     addr = addr.split(":") 
     var host = addr[0]
     var port = addr[1]
 
-    console.log(host + " " + port)
     var tcpSuccess = false 
     // attempt a direct connection first with TCP
     var client = net.connect({port: port, host: host}, function() {
@@ -292,9 +293,9 @@ function connect(key, dht, holePunch, handleConn) {
     // if it fails go for a UDP hole punching connection
     // using UTP over UDP for reliability
     var onFail =  function(err) {
-      console.log("direct TCP connection attempt failed with error " + err)
+      log.warn("direct TCP connection attempt failed with error " + err)
       if (holePunch) {
-        console.log("Trying a hole punching connection over UDP on the same port.")
+        log.info("Trying a hole punching connection over UDP on the same port.")
         udpConnect(host, port, key, dht, recvPort, handleConn)
       } else {
         handleConn(new Error("Failed to connect directly. making no other attempts."))
@@ -303,7 +304,7 @@ function connect(key, dht, holePunch, handleConn) {
 
     client.setTimeout(3000, function() {
       if (tcpSuccess) return
-      console.log("timeout occured")
+      log.debug("timeout occured")
       onFail(new Error("timeout"))
       client.destroy()
     })
@@ -497,7 +498,7 @@ function jsonChunk(cipher) { return JSON.stringify(cipher) + "\n"}
 
 //augmenting the dht
 function augmentDHT(dht) {
-  console.log("augmenting DHT")
+  log.debug("augmenting DHT")
   // adding callback notifications for peers on specific infohashes
   var peerCbs = {}
 
