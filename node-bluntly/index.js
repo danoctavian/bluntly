@@ -272,7 +272,7 @@ function connect(key, dht, holePunch, handleConn) {
 
    // the recv port for udp hole punching
   // we instantiate a mutable location for it so it can be incremented
-  var recvPort = {val: holePunch.recvPort}
+  if (holePunch) var recvPort = {val: holePunch.recvPort}
   var candidates = {}
   dht.onInfoHashPeer(infoHash, function(addr, from) {
     if (candidates[addr]) return
@@ -283,8 +283,10 @@ function connect(key, dht, holePunch, handleConn) {
     var port = addr[1]
 
     console.log(host + " " + port)
+    var tcpSuccess = false 
     // attempt a direct connection first with TCP
     var client = net.connect({port: port, host: host}, function() {
+      tcpSuccess = true
       handleConn(null, client) // handle connection, no errors
     })
 
@@ -301,6 +303,7 @@ function connect(key, dht, holePunch, handleConn) {
     }
 
     client.setTimeout(3000, function() {
+      if (tcpSuccess) return
       console.log("timeout occured")
       onFail(new Error("timeout"))
       client.destroy()
