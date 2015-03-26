@@ -50,6 +50,7 @@ function SocketStream (socket) {
 }
 util.inherits(SocketStream, stream.Writable)
 SocketStream.prototype._write = function (chunk, encoding, done) {
+  console.log("sending down the socket " + chunk)
   this.ownSocket.write(chunk)
   done()
 }
@@ -72,7 +73,8 @@ if (argv.c) {
     }
     console.log("succeeded connecting to server!! start chatting.")
     conn.src.pipe(process.stdout) 
-    process.stdin.pipe(conn.sink)
+  //  process.stdin.pipe(conn.sink)
+    conn.sink.write("i am the client. obey.")
   }
 } else if (argv.s) {
   console.log("running a server")
@@ -82,7 +84,8 @@ if (argv.c) {
     alreadyChatting = true
     console.log("got connection from client!! start chatting.")
     conn.src.pipe(process.stdout) 
-    process.stdin.pipe(conn.sink)
+  //  process.stdin.pipe(conn.sink)
+    conn.sink.write("i am the server. obey.")
   }
 }
 
