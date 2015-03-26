@@ -229,7 +229,7 @@ function udpListen(dht, config, handleConn) {
 
 function udpConnect(host, port, key, dht, recvPort, handleConn) {
   var infoHash = rendezvousInfoHash(key)      
-  console.log("announcing itself on the rendezvous infohash " + infoHash)
+  console.log("announcing itself on the rendezvous infohash " + infoHash + " with port " + recvPort.val)
 
   var ownPort = recvPort.val
   recvPort.val++ // use a bigger port for the next one
