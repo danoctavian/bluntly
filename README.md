@@ -4,7 +4,7 @@ talk to whoever, wherever safely with no bullshit
 
 Bluntly allows you to setup a secure connection to a peer by only knowing its public key (and it knowing yours).
 
-No servers needed, no NAT getting in the way. It's a POC (proof-of-concept) so don't start talking with snowden with this shit.
+No servers needed, no NAT getting in the way. It's a POC (proof-of-concept) so don't start talking with snowden with this.
 
 ![alt text](https://github.com/danoctavian/bluntly/blob/master/docs/chat-diagram.png "fuuak")
 
