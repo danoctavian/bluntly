@@ -2,7 +2,7 @@
 
 talk to whoever, wherever safely with no bullshit
 
-Bluntly allows you to setup a secure connection to a peer only by knowing its public key (and it knowing yours).
+Bluntly allows you to setup a secure connection to a peer by only knowing its public key (and it knowing yours).
 
 No servers needed, no NAT getting in the way. It's a POC (proof-of-concept) so don't start talking with snowden with this shit.
 
