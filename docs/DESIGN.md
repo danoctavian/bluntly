@@ -37,3 +37,12 @@ golang has everything
 * https://godoc.org/golang.org/x/crypto/curve25519
 * https://github.com/gizak/termui
 * parsers are not great but you can write them
+
+### Modules
+
+Nat penetration
+encryption/decryption pipe.
+
+look into nat pinning presented by sammy kamkar.
+
+
