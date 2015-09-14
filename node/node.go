@@ -134,7 +134,7 @@ func handleClientConn(rawConn net.Conn,
   _, privKey, err := box.GenerateKey(rand.Reader)
   if (err != nil) { return }
 
-  var sharedKey [32]byte
+  var sharedKey [sessionKeyLen]byte
   box.Precompute(&sharedKey, connReq.sessionKey, privKey) 
 
   return &Conn{rawConn, &sharedKey}, nil
@@ -146,7 +146,7 @@ const sessionKeyLen = 32
 /* connection request */
 type ConnRequest struct {
   peerPub *rsa.PublicKey
-  sessionKey *[32]byte 
+  sessionKey *[sessionKeyLen]byte 
 }
 
 type ConnResponse struct {
@@ -161,8 +161,8 @@ func (r *ConnRequest) MarshalBinary() (data []byte, err error) {
 }
 
 func (r *ConnRequest) UnmarshalBinary(data []byte) (err error) {
-  copiedBytes := copy(r.sessionKey[:], data[:32])
-  if (copiedBytes < 32) {
+  copiedBytes := copy(r.sessionKey[:], data[:sessionKeyLen])
+  if (copiedBytes < sessionKeyLen) {
     return errors.New("session key too short.")    
   }
 
@@ -179,7 +179,7 @@ func (r *ConnRequest) UnmarshalBinary(data []byte) (err error) {
 
 type Conn struct {
   net.Conn // underlying network connection 
-  sharedKey *[32]byte
+  sharedKey *[sessionKeyLen]byte
 }
 
 func (c *Conn) Read(b []byte) (n int, err error) {
@@ -187,12 +187,60 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 }
 
 func (c *Conn) Write(b []byte) (n int, err error) {
-  return 
 
+  return c.Conn.Write(b) 
 }
+
 func (c Conn) Close() error {
   return nil
 }
+
+const nonceLen = 24
+
+func CiphertextLength(msgLen int) int {
+  return box.Overhead + nonceLen + msgLen
+}
+
+func MsgLength(cipherLen int) int {
+  return cipherLen - box.Overhead - nonceLen
+}
+
+
+// writes the ciphertext in the provided buffer
+func Encrypt(msg []byte, ciphertext []byte, sharedKey *[sessionKeyLen]byte) (err error) {
+
+  nonceSlice := ciphertext[:nonceLen]
+  _, err = rand.Read(nonceSlice)
+  if err != nil { return err }
+
+  var nonce [24]byte
+  copy(nonce[:], nonceSlice)
+
+  box.SealAfterPrecomputation(ciphertext[nonceLen:], msg, &nonce, sharedKey)
+  return
+}
+
+func Decrypt(ciphertext []byte, sharedKey *[sessionKeyLen]byte) (msg []byte, err error) {
+  nonceSlice := ciphertext[:nonceLen]
+  var nonce [nonceLen]byte
+  copy(nonce[:], nonceSlice)
+
+  msgLen := MsgLength(len(ciphertext))
+  msg = make([]byte, msgLen) 
+
+  _, success := box.OpenAfterPrecomputation(msg, ciphertext[nonceLen:], &nonce, sharedKey)
+
+  if !success {
+    return nil, DecryptError{}
+  } else {
+    return msg, nil
+  }
+}
+
+type DecryptError struct {
+}
+
+func (e DecryptError) Error() string { return "failed to decrypt message."}
 
 
 
