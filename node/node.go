@@ -206,17 +206,16 @@ func MsgLength(cipherLen int) int {
 }
 
 
-// writes the ciphertext in the provided buffer
-func Encrypt(msg []byte, ciphertext []byte, sharedKey *[sessionKeyLen]byte) (err error) {
+func Encrypt(msg []byte, sharedKey *[sessionKeyLen]byte) (ciphertext []byte, err error) {
+  err = nil
+  ciphertext = make([]byte, nonceLen)
+  var nonce [nonceLen]byte
+   _, err = rand.Read(ciphertext[:nonceLen])
+  if err != nil { return }
 
-  nonceSlice := ciphertext[:nonceLen]
-  _, err = rand.Read(nonceSlice)
-  if err != nil { return err }
+  copy(nonce[:], ciphertext[:nonceLen])
 
-  var nonce [24]byte
-  copy(nonce[:], nonceSlice)
-
-  box.SealAfterPrecomputation(ciphertext[nonceLen:], msg, &nonce, sharedKey)
+  ciphertext = box.SealAfterPrecomputation(ciphertext, msg, &nonce, sharedKey)
   return
 }
 
@@ -224,6 +223,8 @@ func Decrypt(ciphertext []byte, sharedKey *[sessionKeyLen]byte) (msg []byte, err
   nonceSlice := ciphertext[:nonceLen]
   var nonce [nonceLen]byte
   copy(nonce[:], nonceSlice)
+
+  fmt.Println("NONCE is ", nonce)
 
   msgLen := MsgLength(len(ciphertext))
   msg = make([]byte, msgLen) 

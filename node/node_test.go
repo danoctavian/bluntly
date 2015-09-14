@@ -9,7 +9,6 @@ import (
 )
 
 func TestEncryptDecrypt(t *testing.T) {
-
   peerPubKey, _, err := box.GenerateKey(rand.Reader)
   if (err != nil) { 
     t.Errorf("failed key gen %s", err)
@@ -26,11 +25,11 @@ func TestEncryptDecrypt(t *testing.T) {
   box.Precompute(&sharedKey, peerPubKey, ownPrivKey)
 
   msg := []byte("wtf am i doing")
-  msgLen := len(msg)
-  cipherLen := node.CiphertextLength(msgLen)
-  cipher := make([]byte, cipherLen)
+  //msgLen := len(msg)
+  //cipherLen := node.CiphertextLength(msgLen)
+  
+  cipher, err := node.Encrypt(msg, &sharedKey)
 
-  err = node.Encrypt(msg, cipher, &sharedKey)
   if (err != nil) { 
     t.Errorf("failed to encrypt %s", err)
     return
