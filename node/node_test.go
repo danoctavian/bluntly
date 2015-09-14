@@ -2,7 +2,7 @@ package node_test
 
 import (
   "testing"
- "github.com/danoctavian/bluntly/node"
+  "github.com/danoctavian/bluntly/node"
   "golang.org/x/crypto/nacl/box"
   "crypto/rand"
   "bytes"
@@ -25,8 +25,6 @@ func TestEncryptDecrypt(t *testing.T) {
   box.Precompute(&sharedKey, peerPubKey, ownPrivKey)
 
   msg := []byte("wtf am i doing")
-  //msgLen := len(msg)
-  //cipherLen := node.CiphertextLength(msgLen)
   
   cipher, err := node.Encrypt(msg, &sharedKey)
 
