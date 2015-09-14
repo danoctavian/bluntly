@@ -12,7 +12,10 @@ import (
   "errors"
   "golang.org/x/crypto/nacl/box"
   "crypto/rand"
+  "crypto/sha1"
   "bytes"
+  "encoding/hex"
+  "time"
 
   "github.com/danoctavian/bluntly/stream"
 )
@@ -65,6 +68,13 @@ func NewNode(conf *Config) (node *Node, err error) {
 
 /* CLIENT */
 
+/*
+func (n *Node) Dial(peerPubKey *rsa.PublicKey) (conn Conn, err error) {
+
+}
+
+*/
+
 /* LISTENER */
 type Listener struct {
   connChan chan *Conn
@@ -98,7 +108,28 @@ func (n *Node) Listen(port int) (listener *Listener, err error) {
     }
   }()
 
+  // announce yourself to the DHT
+  go n.announceSelf()
+
   return
+}
+
+func (n *Node) announceSelf() error {
+  infoHash, err := pubKeyToInfoHash(&n.config.ownKey.PublicKey)
+  if (err != nil) {return err}
+
+  for {
+    // the peers request is done only for the purpose of announcing
+    n.dht.PeersRequest(infoHash, true) 
+    time.Sleep(10 * time.Second)
+  }
+}
+
+func pubKeyToInfoHash(pub *rsa.PublicKey) (string, error) {
+  pubKeyBytes, err := x509.MarshalPKIXPublicKey(pub)
+  if err != nil { return "", err}
+  sha1Bytes := sha1.Sum(pubKeyBytes)
+  return hex.EncodeToString(sha1Bytes[:]), nil
 }
 
 func (l *Listener) Accept() (c net.Conn, err error) {

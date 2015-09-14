@@ -44,3 +44,6 @@ func TestEncryptDecrypt(t *testing.T) {
       
   }
 }
+
+func TestConnections(t *testing.T) {
+}
