@@ -17,7 +17,7 @@ Bluntly is currently undergoing a rewrite from javascript to Golang. the old jav
 
 Reasons for rewriting: the first version was an unstable POC, meant to showcase what's possible and explore the problem space.
 
-Why Golang? Has all necessary libraries (dht, crypto, except for a food implementation of UTP), has reliable cryptography libraries, has good networking libraries and chans/green threads, is a simple programming language that allows individals with no experience in Golang to verify the app for correctness and security.
+Why Golang? Has all necessary libraries (dht, crypto, except for a good implementation of UTP), has reliable cryptography libraries, has good networking libraries and chans/green threads, is a simple programming language that allows individuals with no experience in Golang to verify the app for correctness and security.
 
 How?
 
