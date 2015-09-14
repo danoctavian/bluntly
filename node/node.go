@@ -320,26 +320,47 @@ type DecryptError struct {
 }
 func (e DecryptError) Error() string { return "failed to decrypt message."}
 
-
+type PeerChan (chan<- string)
 /* DHT */
 // an enhanced version of the DHT that allows per infohash subscriptions
 // with notifications sent down channels
 type DHT struct {
   *dht.DHT
 
-  subscribers *map[dht.InfoHash][](chan<- string)
+  subscribers *map[dht.InfoHash](*ChanSet)
   subMutex *sync.Mutex
 }
 
+
+// holy mother of god... no set type and no generics
+type ChanSet struct {
+    set map[PeerChan]bool
+}
+
+func (set *ChanSet) Add(ch PeerChan) bool {
+    _, found := set.set[ch]
+    set.set[ch] = true
+    return !found 
+}
+func (set *ChanSet) Remove(ch PeerChan) {
+  delete(set.set, ch)
+}
+
 func newDHT(dhtClient *dht.DHT) *DHT {
-  mp := make(map[dht.InfoHash][](chan<- string))
+  mp := make(map[dht.InfoHash](*ChanSet))
   return &DHT{dhtClient, &mp, &sync.Mutex{}}
 }
 
 // subscribe for peer notifications on that infohash
-func (dht *DHT) subscribeToInfoHash(infoHash string, notificationChan chan<- string) {
-  dht.subMutex.Lock()
-  defer dht.subMutex.Unlock()
+func (d *DHT) subscribeToInfoHash(infoHash dht.InfoHash, notificationChan PeerChan) {
+  d.subMutex.Lock()
+  defer d.subMutex.Unlock()
+  chanSet := (*d.subscribers)[infoHash]
+  if (chanSet == nil) {
+    chanSet = &ChanSet{}
+    (*d.subscribers)[infoHash] = chanSet
+  }
+  chanSet.Add(notificationChan)
 }
 
 func (dht *DHT) unsubscribeToInfoHash(infoHash string) {
@@ -359,8 +380,10 @@ func (dht *DHT) notifyOfPeers(batch map[dht.InfoHash][]string) {
 
   for infoHash, peers := range batch {
     for _, peer := range peers {
-      for _, notificationChan := range (*dht.subscribers)[infoHash] {
-        notificationChan <- peer
+      peerChanSet := (*dht.subscribers)[infoHash]
+      for peerChan, _ := range peerChanSet.set {
+        // do something with e.Value
+        peerChan <- peer
       }
     }
   }
