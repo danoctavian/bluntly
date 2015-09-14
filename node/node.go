@@ -69,12 +69,9 @@ func NewNode(conf *Config) (node *Node, err error) {
 }
 
 /* CLIENT */
-
-/*
 func (n *Node) Dial(peerPubKey *rsa.PublicKey) (conn Conn, err error) {
 
 }
-*/
 
 /* LISTENER */
 type Listener struct {
@@ -93,7 +90,7 @@ func (n *Node) Listen(port int) (listener *Listener, err error) {
     for {
       tcpConn, tcpErr := tcpListener.Accept()
       if tcpErr != nil {
-       Log(LOG_ERROR, "%s", tcpErr)
+        Log(LOG_ERROR, "%s", tcpErr)
       }
 
       go func() {
@@ -351,6 +348,14 @@ func newDHT(dhtClient *dht.DHT) *DHT {
   return &DHT{dhtClient, &mp, &sync.Mutex{}}
 }
 
+func (d *DHT) Run() {
+  // launch the goroutine that deals with dispatching notifications about peers
+  go d.drainResults()
+
+  // run the underlying dht client normally
+  d.DHT.Run()
+}
+
 // subscribe for peer notifications on that infohash
 func (d *DHT) subscribeToInfoHash(infoHash dht.InfoHash, notificationChan PeerChan) {
   d.subMutex.Lock()
@@ -363,9 +368,14 @@ func (d *DHT) subscribeToInfoHash(infoHash dht.InfoHash, notificationChan PeerCh
   chanSet.Add(notificationChan)
 }
 
-func (dht *DHT) unsubscribeToInfoHash(infoHash string) {
+func (dht *DHT) unsubscribeToInfoHash(infoHash dht.InfoHash, notificationChan PeerChan) {
   dht.subMutex.Lock()
   defer dht.subMutex.Unlock()
+
+  chanSet := (*dht.subscribers)[infoHash]
+  if (chanSet != nil) {
+    chanSet.Remove(notificationChan)
+  }
 }
 
 func (dht *DHT) drainResults() {
@@ -388,8 +398,3 @@ func (dht *DHT) notifyOfPeers(batch map[dht.InfoHash][]string) {
     }
   }
 }
-
-
-
-
-

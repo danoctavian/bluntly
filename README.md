@@ -11,6 +11,14 @@ No servers needed, no NAT getting in the way. It's a POC (proof-of-concept) so d
 Disclaimer: there's no really clever ideas here, i'm just stiching some things together. It's a hacky implementation (I can't justify
 myself for this, it just felt good to screw around in javascript).
 
+#### Important note
+
+Bluntly is currently undergoing a rewrite from javascript to Golang. the old javascript code is in node-bluntly. the rest of the code is work in progress.
+
+Reasons for rewriting: the first version was an unstable POC, meant to showcase what's possible and explore the problem space.
+
+Why Golang? Has all necessary libraries (dht, crypto, except for a food implementation of UTP), has reliable cryptography libraries, has good networking libraries and chans/green threads, is a simple programming language that allows individals with no experience in Golang to verify the app for correctness and security.
+
 How?
 
 * exchange pub keys with your partner (i don't know how, figure it out)
