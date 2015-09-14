@@ -22,7 +22,7 @@ import (
 
 /* NODE */
 type Node struct { 
-  dht *dht.DHT
+  dht *DHT
   config *Config
 }
 
@@ -57,8 +57,10 @@ func NewNode(conf *Config) (node *Node, err error) {
   // setup the DHT
   dhtConf := dht.DefaultConfig
   dhtConf.Port = conf.dhtPort
-  dht, err := dht.New(dhtConf)
+  dhtClient, err := dht.New(dhtConf)
   if err != nil { return }
+  dht := newDHT(dhtClient)
+
   go dht.Run()
 
   node.dht = dht
@@ -72,7 +74,6 @@ func NewNode(conf *Config) (node *Node, err error) {
 func (n *Node) Dial(peerPubKey *rsa.PublicKey) (conn Conn, err error) {
 
 }
-
 */
 
 /* LISTENER */
@@ -318,6 +319,54 @@ func lenPrefix(b []byte) ([]byte) {
 type DecryptError struct {
 }
 func (e DecryptError) Error() string { return "failed to decrypt message."}
+
+
+/* DHT */
+// an enhanced version of the DHT that allows per infohash subscriptions
+// with notifications sent down channels
+type DHT struct {
+  *dht.DHT
+
+  subscribers *map[dht.InfoHash][](chan<- string)
+  subMutex *sync.Mutex
+}
+
+func newDHT(dhtClient *dht.DHT) *DHT {
+  mp := make(map[dht.InfoHash][](chan<- string))
+  return &DHT{dhtClient, &mp, &sync.Mutex{}}
+}
+
+// subscribe for peer notifications on that infohash
+func (dht *DHT) subscribeToInfoHash(infoHash string, notificationChan chan<- string) {
+  dht.subMutex.Lock()
+  defer dht.subMutex.Unlock()
+}
+
+func (dht *DHT) unsubscribeToInfoHash(infoHash string) {
+  dht.subMutex.Lock()
+  defer dht.subMutex.Unlock()
+}
+
+func (dht *DHT) drainResults() {
+  for batch := range dht.PeersRequestResults {
+    dht.notifyOfPeers(batch)
+  }
+}
+
+func (dht *DHT) notifyOfPeers(batch map[dht.InfoHash][]string) {
+  dht.subMutex.Lock()
+  defer dht.subMutex.Unlock()
+
+  for infoHash, peers := range batch {
+    for _, peer := range peers {
+      for _, notificationChan := range (*dht.subscribers)[infoHash] {
+        notificationChan <- peer
+      }
+    }
+  }
+}
+
+
 
 
 
