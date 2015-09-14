@@ -64,7 +64,6 @@ func TestWriteReadCircularBuf(t *testing.T) {
 
   fmt.Printf("%i %s", byteCount, string(readBuf))
 
-
   if (byteCount != 1 || !bytes.Equal(readBuf, append([]byte("s"), 0))) {
     t.Errorf("read failed")
     return

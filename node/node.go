@@ -66,7 +66,6 @@ func NewNode(conf *Config) (node *Node, err error) {
 /* CLIENT */
 
 /* LISTENER */
-
 type Listener struct {
   connChan chan *Conn
 }
@@ -141,7 +140,12 @@ func handleClientConn(rawConn net.Conn,
   box.Precompute(&sharedKey, connReq.sessionKey, privKey) 
 
   return &Conn{Conn: rawConn,
-              sharedKey: &sharedKey, readerBufMutex: &sync.Mutex{}}, nil
+              sharedKey: &sharedKey,
+              // TODO: circular buffer capacity may cause 
+              // streaming to fail. to avoid,
+              // put a cap on the size of the encrypted chunks
+              readBuf: stream.NewCircularBuf(2048),
+              readerBufMutex: &sync.Mutex{}}, nil
 }
 
 const sessionKeyLen = 32
@@ -188,13 +192,26 @@ type Conn struct {
   readerBufMutex *sync.Mutex
 }
 
-func (c *Conn) Read(b []byte) (n int, err error) {
+func (c *Conn) Read(b []byte) (readBytes int, err error) {
   c.readerBufMutex.Lock()
   defer c.readerBufMutex.Unlock()
+
+  readBytes, _ = c.readBuf.Read(b)
+  if readBytes > 0 { return readBytes, nil } // just serve the data from the buffer
+
+  // if the buffer is empty
+  msg, err := c.readFromConn()
+  readBytes = copy(b, msg)
+  if readBytes < len(msg) { 
+    // there's data unread that needs to be buffered
+    _, err = c.readBuf.Write(msg[readBytes:])
+    if (err != nil) {return 0, err}
+  }
 
   return
 }
 
+// reads data from the network connection
 func (c *Conn) readFromConn() (msg []byte, err error) {
   var msgLen uint64
   err = binary.Read(c.Conn, binary.BigEndian, &msgLen)
