@@ -20,6 +20,15 @@ import (
   "github.com/danoctavian/bluntly/stream"
 )
 
+/* CONSTANTS */
+
+const sessionKeyLen = 32
+const nonceLen = 24
+const readBufferCapacity = 2048
+
+// size of the buffer for peer notifications
+const peerChanBufferCapacity = 100
+
 /* NODE */
 type Node struct { 
   dht *DHT
@@ -70,7 +79,22 @@ func NewNode(conf *Config) (node *Node, err error) {
 
 /* CLIENT */
 func (n *Node) Dial(peerPubKey *rsa.PublicKey) (conn Conn, err error) {
+  infoHash, err := pubKeyToInfoHash(peerPubKey)
+  if (err != nil) {return }
 
+  peerNotifications := make(chan string, peerChanBufferCapacity)
+  n.dht.subscribeToInfoHash(dht.InfoHash(infoHash), peerNotifications)
+
+  // ask for the infohash
+  n.dht.PeersRequest(infoHash, false) 
+
+  for peerNotification := range peerNotifications {
+    go func(peerNotification string) {
+
+    }(peerNotification)
+  }
+
+  return
 }
 
 /* LISTENER */
@@ -173,11 +197,9 @@ func handleClientConn(rawConn net.Conn,
               // TODO: circular buffer capacity may cause 
               // streaming to fail. to avoid,
               // put a cap on the size of the encrypted chunks
-              readBuf: stream.NewCircularBuf(2048),
+              readBuf: stream.NewCircularBuf(readBufferCapacity),
               readerBufMutex: &sync.Mutex{}}, nil
 }
-
-const sessionKeyLen = 32
 
 /* connection request */
 type ConnRequest struct {
@@ -264,8 +286,6 @@ func (c *Conn) Write(msg []byte) (n int, err error) {
 func (c Conn) Close() error {
   return nil
 }
-
-const nonceLen = 24
 
 func CiphertextLength(msgLen int) int {
   return box.Overhead + nonceLen + msgLen
