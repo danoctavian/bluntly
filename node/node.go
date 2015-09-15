@@ -17,7 +17,7 @@ import (
   "encoding/hex"
   "time"
 
-  "github.com/danoctavian/bluntly/stream"
+  "github.com/danoctavian/bluntly/netutils"
 )
 
 /* CONSTANTS */
@@ -86,12 +86,27 @@ func (n *Node) Dial(peerPubKey *rsa.PublicKey) (conn Conn, err error) {
   n.dht.subscribeToInfoHash(dht.InfoHash(infoHash), peerNotifications)
 
   // ask for the infohash
-  n.dht.PeersRequest(infoHash, false) 
+  n.dht.PeersRequest(infoHash, false)
+
+  connSuccessChan := make(chan Conn)
 
   for peerNotification := range peerNotifications {
     go func(peerNotification string) {
 
     }(peerNotification)
+  }
+
+  timeout := make(chan bool, 1) 
+  go func() {
+    time.Sleep(30 * time.Second)
+    timeout <- true
+  }()
+
+  select {
+    case <-connSuccessChan:
+    // a read from ch has occurred
+    case <-timeout:
+    // the read from ch has timed out
   }
 
   return
@@ -197,7 +212,7 @@ func handleClientConn(rawConn net.Conn,
               // TODO: circular buffer capacity may cause 
               // streaming to fail. to avoid,
               // put a cap on the size of the encrypted chunks
-              readBuf: stream.NewCircularBuf(readBufferCapacity),
+              readBuf: netutils.NewCircularBuf(readBufferCapacity),
               readerBufMutex: &sync.Mutex{}}, nil
 }
 
@@ -239,7 +254,7 @@ type Conn struct {
 
   // a buffer that is used to store in excess data, not yet read
   // but already decrypted
-  readBuf *stream.CircularBuf
+  readBuf *netutils.CircularBuf
   readerBufMutex *sync.Mutex
 }
 

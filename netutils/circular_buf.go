@@ -1,8 +1,11 @@
-package stream
+package netutils
 
 import (
 	"errors"
+	"time"
 )
+
+/* Circular byte buffer */
 
 // a a circular byte buffer 
 type CircularBuf struct {
@@ -56,4 +59,26 @@ func (b *CircularBuf) Size() int {
 func (b *CircularBuf) Capacity() int {
 	return len(b.buf)
 } 
+
+/* channel timeout */
+
+
+// reads 1 element from the channel with a timeout.
+func ReadWithTimeout(ch <-chan (interface{}), timeoutMillis int) (val interface{}, err error) {
+  timeout := make(chan bool, 1) 
+  go func() {
+    time.Sleep(30 * time.Second)
+    timeout <- true
+  }()
+
+  select {
+    case v := <-ch:
+    	val = v
+    case <-timeout:
+    	// the read from ch has timed out
+    	err = errors.New("timed out on read from channel after ")
+  }
+
+  return 
+}
 

@@ -1,15 +1,15 @@
-package stream_test
+package netutils_test
 
 import (
   "testing"
   "bytes"
-  "github.com/danoctavian/bluntly/stream"
+  "github.com/danoctavian/bluntly/netutils"
   "fmt"
 )
 
 func TestWriteReadCircularBuf(t *testing.T) {
   capacity := 10
-  circ := stream.NewCircularBuf(capacity)
+  circ := netutils.NewCircularBuf(capacity)
 
   str1 := []byte("wtf")
   str2 := []byte("omg")
