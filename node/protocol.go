@@ -19,33 +19,58 @@ import (
 func handleServerConn(rawConn net.Conn,
                       ownKey *rsa.PrivateKey,
                       peerPubKey *rsa.PublicKey) (conn *Conn, err error) {
-  return nil, nil
+  pubKey, privKey, err := box.GenerateKey(rand.Reader)
+  if (err != nil) { return }
+
+  connRequest := ConnRequest{&ownKey.PublicKey, pubKey}
+
+  reqBytes, err := connRequest.MarshalBinary()
+  if (err != nil) { return }
+
+  encryptedReq, err := rsa.EncryptPKCS1v15(nil, peerPubKey, reqBytes)
+  if (err != nil) { return }
+
+  fstMsg := lenPrefix(encryptedReq)
+  rawConn.Write(fstMsg)
+
+  plainReply, err := readPubKeyMsg(rawConn, ownKey)
+  if (err != nil) { return }
+
+  var peerSessionKey [sessionKeyLen]byte
+  copy(peerSessionKey[:], plainReply) 
+
+  var sharedKey [sessionKeyLen]byte
+  box.Precompute(&sharedKey, &peerSessionKey, privKey) 
+
+  return &Conn{Conn: rawConn,
+              sharedKey: &sharedKey,
+              readBuf: netutils.NewCircularBuf(readBufferCapacity),
+              readerBufMutex: &sync.Mutex{}}, nil
 }
 
 func handleClientConn(rawConn net.Conn,
                       ownKey *rsa.PrivateKey,
                       contacts *ContactList) (conn *Conn, err error) {
 
-  var handshakeLen int64
-  err = binary.Read(rawConn, binary.BigEndian, &handshakeLen)
-  if (err != nil) { return }
-
-  ciphertext := make([]byte, handshakeLen)
-  _, err = io.ReadFull(rawConn, ciphertext)
-  if (err != nil) { return }
-
-  plain, err := rsa.DecryptPKCS1v15(nil, ownKey, ciphertext)
-  if (err != nil) { return }
+  plain, err := readPubKeyMsg(rawConn, ownKey)
 
   connReq := ConnRequest{}
   err = connReq.UnmarshalBinary(plain)
   if (err != nil) { return }
 
-  _, privKey, err := box.GenerateKey(rand.Reader)
+  pubKey, privKey, err := box.GenerateKey(rand.Reader)
   if (err != nil) { return }
 
   var sharedKey [sessionKeyLen]byte
   box.Precompute(&sharedKey, connReq.sessionKey, privKey) 
+
+  response := pubKey[:]
+  encryptedReply, err := rsa.EncryptPKCS1v15(nil, connReq.peerPub, response)
+  if (err != nil) { return }
+
+  replyMsg := lenPrefix(encryptedReply)
+  _, err = rawConn.Write(replyMsg)
+  if (err != nil) { return }
 
   return &Conn{Conn: rawConn,
               sharedKey: &sharedKey,
@@ -56,6 +81,20 @@ func handleClientConn(rawConn net.Conn,
               readerBufMutex: &sync.Mutex{}}, nil
 }
 
+func readPubKeyMsg(rawConn net.Conn, ownKey *rsa.PrivateKey) (plain []byte, err error) {
+  var msgLen int64
+  err = binary.Read(rawConn, binary.BigEndian, &msgLen)
+  if (err != nil) { return }
+
+  ciphertext := make([]byte, msgLen)
+  _, err = io.ReadFull(rawConn, ciphertext)
+  if (err != nil) { return }
+
+  plain, err = rsa.DecryptPKCS1v15(nil, ownKey, ciphertext)
+  if (err != nil) { return }
+  return
+}
+
 /* connection request */
 type ConnRequest struct {
   peerPub *rsa.PublicKey
@@ -63,7 +102,7 @@ type ConnRequest struct {
 }
 
 type ConnResponse struct {
-
+  sessionKey *[sessionKeyLen]byte
 }
 
 func (r *ConnRequest) MarshalBinary() (data []byte, err error) {
