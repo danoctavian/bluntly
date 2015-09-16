@@ -13,6 +13,7 @@ import (
   "io/ioutil"
   "bytes"
   "encoding/pem"
+  "crypto/sha1"
 
   "github.com/danoctavian/bluntly/netutils"
 )
@@ -29,11 +30,8 @@ func HandleClientConn(rawConn net.Conn,
   reqBytes, err := connRequest.MarshalBinary()
   if (err != nil) { return }
 
-  encryptedReq, err := rsa.EncryptPKCS1v15(nil, peerPubKey, reqBytes)
+  err = writePubKeyMsg(rawConn, peerPubKey, reqBytes)
   if (err != nil) { return }
-
-  fstMsg := lenPrefix(encryptedReq)
-  rawConn.Write(fstMsg)
 
   plainReply, err := readPubKeyMsg(rawConn, ownKey)
   if (err != nil) { return }
@@ -67,12 +65,7 @@ func HandleServerConn(rawConn net.Conn,
   box.Precompute(&sharedKey, connReq.sessionKey, privKey) 
 
   response := pubKey[:]
-  encryptedReply, err := rsa.EncryptPKCS1v15(nil, connReq.peerPub, response)
-  if (err != nil) { return }
-
-  replyMsg := lenPrefix(encryptedReply)
-  _, err = rawConn.Write(replyMsg)
-  if (err != nil) { return }
+  err = writePubKeyMsg(rawConn, connReq.peerPub, response)
 
   return &Conn{Conn: rawConn,
               sharedKey: &sharedKey,
@@ -92,8 +85,21 @@ func readPubKeyMsg(rawConn net.Conn, ownKey *rsa.PrivateKey) (plain []byte, err 
   _, err = io.ReadFull(rawConn, ciphertext)
   if (err != nil) { return }
 
-  plain, err = rsa.DecryptPKCS1v15(nil, ownKey, ciphertext)
+  sha1 := sha1.New()
+  plain, err = rsa.DecryptOAEP(sha1, nil, ownKey, ciphertext, nil)
   if (err != nil) { return }
+  return
+}
+
+func writePubKeyMsg(rawConn net.Conn,
+                    peerKey *rsa.PublicKey,
+                    msg []byte) (err error) {
+  sha1 := sha1.New()
+  encryptedMsg, err := rsa.EncryptOAEP(sha1, nil, peerKey, msg, nil)
+  if (err != nil) { return }
+
+  prefixedMsg := lenPrefix(encryptedMsg)
+  _, err = rawConn.Write(prefixedMsg)
   return
 }
 
