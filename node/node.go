@@ -54,8 +54,8 @@ type HolePunchConf struct {
 }
 
 type ContactList struct {
-  contacts *map[rsa.PublicKey]string
-  mut *sync.Mutex
+  Contacts *map[rsa.PublicKey]string
+  Mut *sync.Mutex
 }
 
 func NewNode(conf *Config) (node *Node, err error) {
@@ -107,15 +107,13 @@ func (n *Node) Dial(peerPubKey *rsa.PublicKey) (conn Conn, err error) {
 }
 
 func (n *Node) handlePotentialPeer(peerAddr string,
-                                   peerPubKey *rsa.PublicKey) (conn Conn, err error) {
+                                   peerPubKey *rsa.PublicKey) (conn *Conn, err error) {
   netConn, err := n.establishNetConn(peerAddr)
   if (err != nil) {
     Log(LOG_WARN, "Failed to setup net connection to %s: %s", peerAddr, err)
     return
   }
-
-  handleServerConn(netConn, n.config.ownKey, peerPubKey)
-  return Conn{}, nil
+  return HandleServerConn(netConn, n.config.ownKey, peerPubKey)
 }
 
 // establish network communication
@@ -155,7 +153,7 @@ func (n *Node) Listen(port int) (listener *Listener, err error) {
       }
 
       go func() {
-        conn, handshakeError := handleClientConn(tcpConn, n.config.ownKey, n.config.contactList)
+        conn, handshakeError := HandleClientConn(tcpConn, n.config.ownKey, n.config.contactList)
         if err != nil {
           Log(LOG_INFO,
               "handling client connection from address %s %s",

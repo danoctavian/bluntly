@@ -16,7 +16,7 @@ import (
 )
 
 
-func handleServerConn(rawConn net.Conn,
+func HandleServerConn(rawConn net.Conn,
                       ownKey *rsa.PrivateKey,
                       peerPubKey *rsa.PublicKey) (conn *Conn, err error) {
   pubKey, privKey, err := box.GenerateKey(rand.Reader)
@@ -48,7 +48,7 @@ func handleServerConn(rawConn net.Conn,
               readerBufMutex: &sync.Mutex{}}, nil
 }
 
-func handleClientConn(rawConn net.Conn,
+func HandleClientConn(rawConn net.Conn,
                       ownKey *rsa.PrivateKey,
                       contacts *ContactList) (conn *Conn, err error) {
 
