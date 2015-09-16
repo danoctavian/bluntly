@@ -113,7 +113,7 @@ func (n *Node) handlePotentialPeer(peerAddr string,
     Log(LOG_WARN, "Failed to setup net connection to %s: %s", peerAddr, err)
     return
   }
-  return HandleServerConn(netConn, n.config.ownKey, peerPubKey)
+  return HandleClientConn(netConn, n.config.ownKey, peerPubKey)
 }
 
 // establish network communication
@@ -153,7 +153,7 @@ func (n *Node) Listen(port int) (listener *Listener, err error) {
       }
 
       go func() {
-        conn, handshakeError := HandleClientConn(tcpConn, n.config.ownKey, n.config.contactList)
+        conn, handshakeError := HandleServerConn(tcpConn, n.config.ownKey, n.config.contactList)
         if err != nil {
           Log(LOG_INFO,
               "handling client connection from address %s %s",

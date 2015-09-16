@@ -10,15 +10,17 @@ import (
   "errors"
   "golang.org/x/crypto/nacl/box"
   "crypto/rand"
+  "io/ioutil"
   "bytes"
+  "encoding/pem"
 
   "github.com/danoctavian/bluntly/netutils"
 )
 
 
-func HandleServerConn(rawConn net.Conn,
+func HandleClientConn(rawConn net.Conn,
                       ownKey *rsa.PrivateKey,
-                      peerPubKey *rsa.PublicKey) (conn *Conn, err error) {
+                      peerPubKey *rsa.PublicKey) (conn *Conn, err error) {  
   pubKey, privKey, err := box.GenerateKey(rand.Reader)
   if (err != nil) { return }
 
@@ -48,7 +50,7 @@ func HandleServerConn(rawConn net.Conn,
               readerBufMutex: &sync.Mutex{}}, nil
 }
 
-func HandleClientConn(rawConn net.Conn,
+func HandleServerConn(rawConn net.Conn,
                       ownKey *rsa.PrivateKey,
                       contacts *ContactList) (conn *Conn, err error) {
 
@@ -230,3 +232,12 @@ type DecryptError struct {
 }
 
 func (e DecryptError) Error() string { return "failed to decrypt message."}
+
+func RsaKeyFromPEM(filename string) (key *rsa.PrivateKey, err error) {
+
+  data, err := ioutil.ReadFile(filename)
+  if err != nil { return }
+
+  block, _ := pem.Decode(data)
+  return x509.ParsePKCS1PrivateKey(block.Bytes)
+}
