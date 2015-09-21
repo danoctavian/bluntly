@@ -39,7 +39,7 @@ func TestEncryptDecrypt(t *testing.T) {
     return
   }
 
-  if (bytes.Equal(msg, plain)) {
+  if (!bytes.Equal(msg, plain)) {
     t.Errorf("expected %s doesn't equal actual %s", string(msg), string(plain))
   }
 }
