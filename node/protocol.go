@@ -13,7 +13,7 @@ import (
   "io/ioutil"
   "bytes"
   "encoding/pem"
-  "crypto/sha1"
+  "fmt"
 
   "github.com/danoctavian/bluntly/netutils"
 )
@@ -25,7 +25,10 @@ func HandleClientConn(rawConn net.Conn,
   pubKey, privKey, err := box.GenerateKey(rand.Reader)
   if (err != nil) { return }
 
-  connRequest := ConnRequest{&ownKey.PublicKey, pubKey}
+  keyHash, err := pubKeyHash(&ownKey.PublicKey)
+  if (err != nil) { return }
+
+  connRequest := ConnRequest{keyHash, pubKey}
 
   reqBytes, err := connRequest.MarshalBinary()
   if (err != nil) { return }
@@ -33,6 +36,7 @@ func HandleClientConn(rawConn net.Conn,
   err = writePubKeyMsg(rawConn, peerPubKey, reqBytes)
   if (err != nil) { return }
 
+  fmt.Println("reading the public key from the pipe")
   plainReply, err := readPubKeyMsg(rawConn, ownKey)
   if (err != nil) { return }
 
@@ -58,14 +62,17 @@ func HandleServerConn(rawConn net.Conn,
   err = connReq.UnmarshalBinary(plain)
   if (err != nil) { return }
 
+  contact := contacts.GetContact(connReq.peerPubHash)
+  if (contact == nil) {return nil, ContactNotFoundError{connReq.peerPubHash[:]}}
+
   pubKey, privKey, err := box.GenerateKey(rand.Reader)
   if (err != nil) { return }
 
   var sharedKey [sessionKeyLen]byte
-  box.Precompute(&sharedKey, connReq.sessionKey, privKey) 
+  box.Precompute(&sharedKey, connReq.sessionKey, privKey)
 
   response := pubKey[:]
-  err = writePubKeyMsg(rawConn, connReq.peerPub, response)
+  err = writePubKeyMsg(rawConn, contact.PublicKey, response)
 
   return &Conn{Conn: rawConn,
               sharedKey: &sharedKey,
@@ -77,6 +84,7 @@ func HandleServerConn(rawConn net.Conn,
 }
 
 func readPubKeyMsg(rawConn net.Conn, ownKey *rsa.PrivateKey) (plain []byte, err error) {
+
   var msgLen int64
   err = binary.Read(rawConn, binary.BigEndian, &msgLen)
   if (err != nil) { return }
@@ -85,8 +93,7 @@ func readPubKeyMsg(rawConn net.Conn, ownKey *rsa.PrivateKey) (plain []byte, err 
   _, err = io.ReadFull(rawConn, ciphertext)
   if (err != nil) { return }
 
-  sha1 := sha1.New()
-  plain, err = rsa.DecryptOAEP(sha1, nil, ownKey, ciphertext, nil)
+  plain, err = rsa.DecryptPKCS1v15(rand.Reader, ownKey, ciphertext)
   if (err != nil) { return }
   return
 }
@@ -94,18 +101,18 @@ func readPubKeyMsg(rawConn net.Conn, ownKey *rsa.PrivateKey) (plain []byte, err 
 func writePubKeyMsg(rawConn net.Conn,
                     peerKey *rsa.PublicKey,
                     msg []byte) (err error) {
-  sha1 := sha1.New()
-  encryptedMsg, err := rsa.EncryptOAEP(sha1, nil, peerKey, msg, nil)
+  encryptedMsg, err := rsa.EncryptPKCS1v15(rand.Reader, peerKey, msg)
   if (err != nil) { return }
 
   prefixedMsg := lenPrefix(encryptedMsg)
+
   _, err = rawConn.Write(prefixedMsg)
   return
 }
 
 /* connection request */
 type ConnRequest struct {
-  peerPub *rsa.PublicKey
+  peerPubHash [32]byte
   sessionKey *[sessionKeyLen]byte 
 }
 
@@ -114,23 +121,21 @@ type ConnResponse struct {
 }
 
 func (r *ConnRequest) MarshalBinary() (data []byte, err error) {
-  pubKeyBytes, err := x509.MarshalPKIXPublicKey(r.peerPub)
-  if (err != nil) { return }
-
-  return append((*r.sessionKey)[:], pubKeyBytes...), nil
+  return append((*r.sessionKey)[:], r.peerPubHash[:]...), nil
 }
 
 func (r *ConnRequest) UnmarshalBinary(data []byte) (err error) {
+  var sess [sessionKeyLen]byte
+  r.sessionKey = &sess
   copiedBytes := copy(r.sessionKey[:], data[:sessionKeyLen])
   if (copiedBytes < sessionKeyLen) {
     return errors.New("session key too short.")    
   }
 
-  someKey, err := x509.ParsePKIXPublicKey(data)
-  pubKey := someKey.(*rsa.PublicKey)
-  if (err != nil) { return }
-  r.peerPub = pubKey
-
+  copiedBytes = copy(r.peerPubHash[:], data[sessionKeyLen:])
+  if (copiedBytes != len(r.peerPubHash[:])) {
+    return errors.New("pub key hash too short")
+  }
   return
 }
 
@@ -149,11 +154,20 @@ func (c *Conn) Read(b []byte) (readBytes int, err error) {
   c.readerBufMutex.Lock()
   defer c.readerBufMutex.Unlock()
 
+
+  fmt.Println("attempting to read in a buffer of size", len(b))
   readBytes, _ = c.readBuf.Read(b)
-  if readBytes > 0 { return readBytes, nil } // just serve the data from the buffer
+
+  if readBytes > 0 {
+    return readBytes, nil
+  } // just serve the data from the buffer
 
   // if the buffer is empty
   msg, err := c.readFromConn()
+  if (err != nil) {
+    fmt.Println("got read from conn Error ", err)
+  }
+
   readBytes = copy(b, msg)
   if readBytes < len(msg) { 
     // there's data unread that needs to be buffered
@@ -161,19 +175,27 @@ func (c *Conn) Read(b []byte) (readBytes int, err error) {
     if (err != nil) {return 0, err}
   }
 
+  fmt.Println("succesfully read this many bytes", readBytes, b[:readBytes])
   return
 }
 
 // reads data from the network connection
 func (c *Conn) readFromConn() (msg []byte, err error) {
   var msgLen uint64
+  fmt.Println("attempting to read from conn")
   err = binary.Read(c.Conn, binary.BigEndian, &msgLen)
   if (err != nil) { return nil, err}
 
+  fmt.Println("read len prefix of message")
+
   cipherBuf := make([]byte, msgLen)
   _, err = io.ReadFull(c.Conn, cipherBuf)
+
   if (err != nil) {return nil, err}
+
   msg, err = Decrypt(cipherBuf, c.sharedKey)
+
+  fmt.Println("read message ", msg)
   return
 }
 
@@ -198,6 +220,7 @@ func MsgLength(cipherLen int) int {
 }
 
 func Encrypt(msg []byte, sharedKey *[sessionKeyLen]byte) (ciphertext []byte, err error) {
+  fmt.Println("encrypting the message ", msg)
   err = nil
   ciphertext = make([]byte, nonceLen)
   var nonce [nonceLen]byte
@@ -215,10 +238,9 @@ func Decrypt(ciphertext []byte, sharedKey *[sessionKeyLen]byte) (msg []byte, err
   var nonce [nonceLen]byte
   copy(nonce[:], nonceSlice)
 
-  msgLen := MsgLength(len(ciphertext))
-  msg = make([]byte, msgLen) 
+  msg = make([]byte, 0) 
 
-  _, success := box.OpenAfterPrecomputation(msg, ciphertext[nonceLen:], &nonce, sharedKey)
+  msg, success := box.OpenAfterPrecomputation(msg, ciphertext[nonceLen:], &nonce, sharedKey)
 
   if !success {
     return nil, DecryptError{}
@@ -238,6 +260,14 @@ type DecryptError struct {
 }
 
 func (e DecryptError) Error() string { return "failed to decrypt message."}
+
+type ContactNotFoundError struct {
+  hash []byte
+}
+
+func (e ContactNotFoundError) Error() string {
+  return fmt.Sprintf("failed to find contact with pub key hash: [% x]", e.hash)
+}
 
 func RsaKeyFromPEM(filename string) (key *rsa.PrivateKey, err error) {
 

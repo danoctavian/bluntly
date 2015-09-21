@@ -8,6 +8,7 @@ import (
   "sync"
   "fmt"
   "crypto/sha1"
+  "crypto/sha256"
   "encoding/hex"
   "time"
 
@@ -54,8 +55,34 @@ type HolePunchConf struct {
 }
 
 type ContactList struct {
-  Contacts *map[rsa.PublicKey]string
+  Contacts *map[[sha256.Size]byte]*Contact
   Mut *sync.Mutex
+}
+
+func NewContactList() (*ContactList) {
+  mp := make(map[[sha256.Size]byte]*Contact)
+  return &ContactList{&mp, &sync.Mutex{}}
+}
+
+type Contact struct {
+  PublicKey *rsa.PublicKey
+}
+
+func (contacts *ContactList) AddContact(contact *Contact) (err error) {
+  contacts.Mut.Lock()
+  defer contacts.Mut.Unlock()
+
+  hash, err := pubKeyHash(contact.PublicKey)
+  (*contacts.Contacts)[hash] = contact
+  return
+}
+
+// returns nil of not found
+func (contacts *ContactList) GetContact(key [sha256.Size]byte) *Contact {
+  contacts.Mut.Lock()
+  defer contacts.Mut.Unlock()
+
+  return (*contacts.Contacts)[key]
 }
 
 func NewNode(conf *Config) (node *Node, err error) {
@@ -187,6 +214,15 @@ func pubKeyToInfoHash(pub *rsa.PublicKey) (string, error) {
   if err != nil { return "", err}
   sha1Bytes := sha1.Sum(pubKeyBytes)
   return hex.EncodeToString(sha1Bytes[:]), nil
+}
+
+
+// computes a sha256 hash of a public key.
+func pubKeyHash(pub *rsa.PublicKey) (hash [sha256.Size]byte, err error) {
+  pubKeyBytes, err := x509.MarshalPKIXPublicKey(pub)
+  if err != nil { return }
+  hash = sha256.Sum256(pubKeyBytes)
+  return hash, nil
 }
 
 func (l *Listener) Accept() (c net.Conn, err error) {

@@ -24,7 +24,7 @@ func TestEncryptDecrypt(t *testing.T) {
   var sharedKey [32]byte
   box.Precompute(&sharedKey, peerPubKey, ownPrivKey)
 
-  msg := []byte("wtf am i doing")
+  msg := []byte("|wtf am i doing|")
   
   cipher, err := node.Encrypt(msg, &sharedKey)
 
@@ -41,7 +41,6 @@ func TestEncryptDecrypt(t *testing.T) {
 
   if (bytes.Equal(msg, plain)) {
     t.Errorf("expected %s doesn't equal actual %s", string(msg), string(plain))
-      
   }
 }
 

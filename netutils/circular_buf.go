@@ -17,6 +17,8 @@ func NewCircularBuf(capacity int) *CircularBuf {
 	return &CircularBuf{buf, 0, 0}
 }
 
+func (b *CircularBuf) GimmeBuf() []byte { return b.buf}
+
 // the read consumes the buffer
 func (b *CircularBuf) Read(p []byte) (bytesCopied int, err error) {
 	err = nil
