@@ -36,7 +36,6 @@ func HandleClientConn(rawConn net.Conn,
   err = writePubKeyMsg(rawConn, peerPubKey, reqBytes)
   if (err != nil) { return }
 
-  fmt.Println("reading the public key from the pipe")
   plainReply, err := readPubKeyMsg(rawConn, ownKey)
   if (err != nil) { return }
 
@@ -154,8 +153,6 @@ func (c *Conn) Read(b []byte) (readBytes int, err error) {
   c.readerBufMutex.Lock()
   defer c.readerBufMutex.Unlock()
 
-
-  fmt.Println("attempting to read in a buffer of size", len(b))
   readBytes, _ = c.readBuf.Read(b)
 
   if readBytes > 0 {
@@ -164,9 +161,6 @@ func (c *Conn) Read(b []byte) (readBytes int, err error) {
 
   // if the buffer is empty
   msg, err := c.readFromConn()
-  if (err != nil) {
-    fmt.Println("got read from conn Error ", err)
-  }
 
   readBytes = copy(b, msg)
   if readBytes < len(msg) { 
@@ -175,18 +169,14 @@ func (c *Conn) Read(b []byte) (readBytes int, err error) {
     if (err != nil) {return 0, err}
   }
 
-  fmt.Println("succesfully read this many bytes", readBytes, b[:readBytes])
   return
 }
 
 // reads data from the network connection
 func (c *Conn) readFromConn() (msg []byte, err error) {
   var msgLen uint64
-  fmt.Println("attempting to read from conn")
   err = binary.Read(c.Conn, binary.BigEndian, &msgLen)
   if (err != nil) { return nil, err}
-
-  fmt.Println("read len prefix of message")
 
   cipherBuf := make([]byte, msgLen)
   _, err = io.ReadFull(c.Conn, cipherBuf)
@@ -194,8 +184,6 @@ func (c *Conn) readFromConn() (msg []byte, err error) {
   if (err != nil) {return nil, err}
 
   msg, err = Decrypt(cipherBuf, c.sharedKey)
-
-  fmt.Println("read message ", msg)
   return
 }
 
@@ -220,7 +208,6 @@ func MsgLength(cipherLen int) int {
 }
 
 func Encrypt(msg []byte, sharedKey *[sessionKeyLen]byte) (ciphertext []byte, err error) {
-  fmt.Println("encrypting the message ", msg)
   err = nil
   ciphertext = make([]byte, nonceLen)
   var nonce [nonceLen]byte

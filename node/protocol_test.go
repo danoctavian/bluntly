@@ -43,7 +43,7 @@ func TestClientServerProtocol(t *testing.T) {
 	}
 
 	sentByA := [][]byte{[]byte{1, 0, 0, 0, 1}, []byte{2, 0, 0, 0, 2}}
-	sentByB := [][]byte{[]byte{3, 0, 0, 0, 3, 4, 7}}//,  bytes.Repeat([]byte{66}, 256)}
+	sentByB := [][]byte{[]byte{3, 0, 0, 0, 3, 4, 7},  bytes.Repeat([]byte{66}, 256)}
 
 
 
@@ -120,8 +120,6 @@ func TestClientServerProtocol(t *testing.T) {
 
 		serverDone <- true
 	}()
-
-	fmt.Println("waiting for done")
 
 	_, err = netutils.ReadWithTimeout(serverDone, 1000)
 
@@ -221,29 +219,14 @@ func (c *TestConn) Read(b []byte) (n int, err error) {
 	if c.closedConn { return 0, nil }
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
-
-
-	n, err = c.readBuf.Read(b)
-
-	isZero := true
-	for _, x := range b[:8] {
-		if (x != 0) { isZero = false }
-	}
-
-	if (len(b) == 8 && !isZero) {
-		fmt.Println("reading the big one and the buf is", b)
-	}
-	return
+	return c.readBuf.Read(b)
 }
 func (c *TestConn) Write(b []byte) (n int, err error) {
 	if c.closedConn { return 0, nil }
 	c.writeMutex.Lock()
 	defer c.writeMutex.Unlock()
 
-//	fmt.Println("about to put in buf", b)
-	n, err = c.writeBuf.Write(b)
-//	fmt.Println("state of buf after write", c.writeBuf.GimmeBuf(), err)
-	return
+	return c.writeBuf.Write(b)
 }
 
 func (c *TestConn) Close() error {
