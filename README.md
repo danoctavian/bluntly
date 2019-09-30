@@ -1,6 +1,8 @@
-# bluntly
+# bluntly - DEPRECATED 
 
-talk to whoever, wherever safely with no bullshit
+- The prototype is no longer function and we strongly recommend you use something like this https://github.com/orbitdb/orbit which achieves the same goal but better.
+
+talk to whoever, wherever safely.
 
 Bluntly allows you to setup a secure connection to a peer by only knowing its public key (and it knowing yours).
 
