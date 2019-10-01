@@ -1,6 +1,6 @@
 # bluntly - DEPRECATED 
 
-- The prototype is no longer function and we strongly recommend you use something like this https://github.com/orbitdb/orbit which achieves the same goal but better.
+- The prototype is no longer functioning and we strongly recommend you use something like this https://github.com/orbitdb/orbit which achieves the same goal but better.
 
 talk to whoever, wherever safely.
 
