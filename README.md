@@ -10,9 +10,6 @@ No servers needed, no NAT getting in the way. It's a POC (proof-of-concept) so d
 
 ![alt text](https://github.com/danoctavian/bluntly/blob/master/docs/chat-diagram.png "fuuak")
 
-Disclaimer: there's no really clever ideas here, i'm just stiching some things together. It's a hacky implementation (I can't justify
-myself for this, it just felt good to screw around in javascript).
-
 #### Important note
 
 Bluntly is currently undergoing a rewrite from javascript to Golang. the old javascript code is in node-bluntly. the rest of the code is work in progress.
