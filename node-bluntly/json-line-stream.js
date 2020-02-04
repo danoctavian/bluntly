@@ -15,7 +15,7 @@ function JSONParseStream() {
   if (!(this instanceof JSONParseStream))
     return new JSONParseStream();
 
-  Transform.call(this, { readableObjectMode : true });
+  Transform.call(this, { objectMode : true });
 
   this._buffer = '';
   this._decoder = new StringDecoder('utf8');

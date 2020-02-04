@@ -3,8 +3,8 @@ var utp = require("./utp")
 
 // CONSTANTS
 
-var PUNCH = "P"
-var ACK = "A"
+var PUNCH = new Buffer("P")
+var ACK = new Buffer("A")
 var PUNCH_INTERVAL = 500
 
 exports.udpHolePunch = udpHolePunch
@@ -21,7 +21,8 @@ function udpHolePunch(socket, target, cb, timeout) {
     if (src.address != target.host || src.port != target.port) {
       return // we aren't interested in this msg
     }
-    if (data == ACK && !client.receivedAck) {
+
+    if (data.toString() == ACK.toString() && !client.receivedAck) {
       client.receivedAck = true //we're done
       client.ackTimestamp = now()
       client.outMsg = ACK
@@ -29,7 +30,7 @@ function udpHolePunch(socket, target, cb, timeout) {
       // remove the listener and call cb
       socket.removeListener('message', onData)
       setImmediate(cb)
-    } else if (data == PUNCH) { // got a punch, start acking
+    } else if (data.toString() == PUNCH.toString()) { // got a punch, start acking
       client.outMsg = ACK
     }
   }
@@ -47,16 +48,16 @@ function sendPunch(client, send) {
   // hacky way of getting the ack on the other side before you stop
   // may NOT always work in case all packets are lost.
   if ((client.receivedAck && now() - client.ackTimestamp >= PUNCH_INTERVAL * 4)
-     || client.cancelled) return 
-  send() 
+     || client.cancelled) return
+  send()
   setTimeout(function() {sendPunch(client, send)}, PUNCH_INTERVAL)
 }
 
 function send(socket, conn, msg, cb) {
   socket.send(msg, 0, msg.length, conn.port, conn.host, function(err, bytes) {
     if (err) {
-      udp_in.close()
       console.log('# stopped due to error: %s', err)
+      process.exit(1)
     } else {
       if (cb) cb()
     }

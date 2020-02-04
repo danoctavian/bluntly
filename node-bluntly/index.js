@@ -59,6 +59,7 @@ SocketStream.prototype._write = function (chunk, encoding, done) {
 var argv = require('minimist')(process.argv.slice(2))
 
 var config = loadConfig(argv)
+var protocol
 
 
 // RUDE chat protocol
@@ -67,10 +68,10 @@ var config = loadConfig(argv)
 // everyone else is just ignored. it's a POC, ok
 if (argv.c) {
   log.info("running a client")
-  var protocol = function (err, conn) {
+  protocol = function (err, conn) {
     if (err) {
       console.log("connection failed with " + err)
-      return 
+      return
     }
     console.log("succeeded connecting to server!! start chatting.")
     conn.src.pipe(process.stdout) 
@@ -80,7 +81,12 @@ if (argv.c) {
 } else if (argv.s) {
   log.info("running a server")
   var alreadyChatting = false
-  var protocol = function (conn) {
+  protocol = function (err, conn) {
+    if (err) {
+      console.log("connection failed with " + err)
+      return
+    }
+
     if (alreadyChatting) return // if someone else tries to connect just ignore them (RUDE)
     alreadyChatting = true
     console.log("got connection from client!! start chatting.")
@@ -93,15 +99,16 @@ if (argv.c) {
 run(config, protocol)
 
 function run(config, handleConn) {
+  var dht
   if (fs.existsSync(config.dhtCacheFile)) { // read cached routing table
     log.debug("loading routing table from cache...")
     var cacheFile = fs.readFileSync(config.dhtCacheFile)
     bootstrap = JSON.parse(cacheFile)
-    var dht = new DHT({bootstrap: bootstrap})
+    dht = new DHT({bootstrap: bootstrap})
   } else {
-    var dht =  new DHT()
+    dht =  new DHT()
   }
-  
+
   augmentDHT(dht)
 
   dht.listen(config.dhtPort, function() {
@@ -113,7 +120,7 @@ function run(config, handleConn) {
     process.on('SIGINT', function() { // this is a hack - do it on exit
       // when exiting for whatever reason at this point
       // just dump the routing table for future use
-      info.log("dumping dht routing table to file...")
+      log.info("dumping dht routing table to file...")
       fs.writeFileSync(config.dhtCacheFile, JSON.stringify(dht.toArray()))
       process.exit()
     })
@@ -121,15 +128,15 @@ function run(config, handleConn) {
     // LISTEN
     if (config.listen) {
       var onConn = function(socket) { // handling a socket connection
-        debug.log("got a connection from a client... ")
-        var onChatConn = function(err, conn) { 
+        log.debug("got a connection from a client... ")
+        var onChatConn = function(err, conn) {
           // handling a post-handshake connection
           // which may fail
           if (err) {
             log.warn("connection failed hanshake with " + err)
             return
           }
-          handleConn(conn)
+          handleConn(err, conn)
         }
         recvConn(socket, config.ownKey, config.contacts, onChatConn)
       }
@@ -195,7 +202,7 @@ function udpListen(dht, config, handleConn) {
 
   dht.onInfoHashPeer(infoHash, function(addr, from) {
     if (punchAttempts[addr]) return // we're already working on it
-    debug.log("attempting a hole punch to potential peer " + addr)
+    log.debug("attempting a hole punch to potential peer " + addr)
     punchAttempts[addr] = true
     addr = addr.split(":")
 
