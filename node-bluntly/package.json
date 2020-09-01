@@ -17,7 +17,7 @@
   ],
   "dependencies": {
     "ramda": "0.10",
-    "bittorrent-dht" : "3.0.0",
+    "bittorrent-dht" : "10.0.0",
     "tweetnacl": "*",
     "node-rsa":"*",
     "minimist": "*",
